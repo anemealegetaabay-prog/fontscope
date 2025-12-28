@@ -1,0 +1,17 @@
+build/
+*.o
+*.a
+*.d
+*.so
+crash-*
+leak-*
+timeout-*
+slow-*
+.DS_Store
+fontscope_cli
+*.dSYM/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+CTestTestfile.cmake
