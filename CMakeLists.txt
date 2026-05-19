@@ -34,6 +34,10 @@ set(LIB_SRCS
     src/inspect.cpp
     src/validate.cpp
     src/metrics.cpp
+    src/raster.cpp
+    src/raster_aa.cpp
+    src/glyph_loader.cpp
+    src/pipeline.cpp
 )
 
 add_library(fontscope STATIC ${LIB_SRCS})
