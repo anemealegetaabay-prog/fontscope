@@ -222,4 +222,71 @@ std::vector<BlockUsage> count_by_block(const std::vector<uint32_t>& codepoints) 
     return usage;
 }
 
+// Compute per-block coverage for a font's cmap.
+// Only blocks with at least one code point in range are returned.
+std::vector<BlockCoverage> font_block_coverage(
+    const std::vector<uint32_t>& mapped_codepoints)
+{
+    // Sort for binary search.
+    std::vector<uint32_t> sorted = mapped_codepoints;
+    std::sort(sorted.begin(), sorted.end());
+
+    std::vector<BlockCoverage> result;
+    result.reserve(32);
+
+    for (const auto& blk : kBlocks) {
+        // Count total code points in block.
+        uint32_t total = blk.last - blk.first + 1;
+        // Count mapped code points in block using lower_bound.
+        auto lo = std::lower_bound(sorted.begin(), sorted.end(), blk.first);
+        auto hi = std::upper_bound(sorted.begin(), sorted.end(), blk.last);
+        uint32_t mapped = uint32_t(hi - lo);
+        if (mapped == 0) continue;
+
+        double coverage = double(mapped) / double(total);
+        result.push_back({&blk, total, mapped, coverage});
+    }
+
+    // Sort by coverage descending.
+    std::sort(result.begin(), result.end(),
+              [](const BlockCoverage& a, const BlockCoverage& b){
+                  return a.coverage > b.coverage;
+              });
+    return result;
+}
+
+// Return the primary writing script suggested by the block with the highest coverage.
+const char* dominant_script(const std::vector<BlockCoverage>& coverage) {
+    if (coverage.empty()) return "Unknown";
+    // Use the first (highest coverage) block's abbrev as a proxy.
+    return coverage[0].block->abbrev;
+}
+
+// Return true if a block covers the entire standard alphanumeric Latin range
+// (U+0020..U+007E, plus extended Latin blocks).
+bool is_full_latin_coverage(const std::vector<BlockCoverage>& coverage) {
+    bool has_basic_latin = false;
+    for (const auto& c : coverage) {
+        if (c.block->first == 0x0020 && c.coverage >= 0.9) {
+            has_basic_latin = true;
+            break;
+        }
+    }
+    return has_basic_latin;
+}
+
+// Print a coverage table to stdout.
+void print_block_coverage(const std::vector<BlockCoverage>& coverage,
+                           double min_coverage)
+{
+    printf("Unicode block coverage:\n");
+    printf("  %-45s %6s %8s %8s\n", "Block", "Mapped", "Total", "Coverage");
+    for (const auto& c : coverage) {
+        if (c.coverage < min_coverage) continue;
+        printf("  %-45s %6u %8u %7.1f%%\n",
+               c.block->name, c.mapped_in_font,
+               c.total_in_block, c.coverage * 100.0);
+    }
+}
+
 } // namespace fontscope

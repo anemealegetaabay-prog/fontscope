@@ -48,4 +48,19 @@ struct BlockCoverage {
     double     coverage;          // mapped / total
 };
 
+// Compute per-block coverage given a set of codepoints with non-zero GIDs.
+// Returns only blocks with at least one mapped codepoint, sorted by coverage.
+std::vector<BlockCoverage> font_block_coverage(
+    const std::vector<uint32_t>& mapped_codepoints);
+
+// Return the primary script suggested by the highest-coverage block.
+const char* dominant_script(const std::vector<BlockCoverage>& coverage);
+
+// Return true if Latin basic block is covered at >= 90%.
+bool is_full_latin_coverage(const std::vector<BlockCoverage>& coverage);
+
+// Print a formatted coverage table.
+void print_block_coverage(const std::vector<BlockCoverage>& coverage,
+                           double min_coverage = 0.01);
+
 } // namespace fontscope
