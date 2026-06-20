@@ -42,10 +42,10 @@ std::string json_escape(const std::string& s);
 class JsonWriter {
 public:
     JsonWriter() = default;
-    void begin_object() { buf_ += '{'; sep_ = false; }
-    void end_object()   { buf_ += '}'; }
-    void begin_array()  { buf_ += '['; sep_ = false; }
-    void end_array()    { buf_ += ']'; }
+    void begin_object() { comma_if_needed(); buf_ += '{'; sep_ = false; }
+    void end_object()   { buf_ += '}'; sep_ = true; }
+    void begin_array()  { comma_if_needed(); buf_ += '['; sep_ = false; }
+    void end_array()    { buf_ += ']'; sep_ = true; }
 
     void key(const char* k);
     void value_string(const std::string& v);
