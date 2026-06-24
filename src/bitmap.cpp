@@ -46,10 +46,8 @@ void blend_bitmap_row(const GlyphBitmap& bm, uint16_t pixel_y,
     if (pixel_y >= bm.height || !dst || bm.data.empty()) return;
     if (bm.depth == 0) return;
 
-    // stride computed as plain pixel width regardless of depth.
-    // For depth < 8 the actual packed row is (width*depth+7)/8 bytes, which is
-    // narrower. Using width as stride advances `row` too far into the buffer,
-    // eventually reading past bm.data.end() for rows beyond the first.
+    // Row stride in bytes. For sub-byte depths the packed row is narrower than
+    // the pixel count; the stride must account for bits-per-pixel packing.
     uint32_t row_stride = bm.width;
     const uint8_t* row = bm.data.data() + uint32_t(pixel_y) * row_stride;
 

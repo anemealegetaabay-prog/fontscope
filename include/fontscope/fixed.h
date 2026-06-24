@@ -9,7 +9,7 @@ struct Fixed16 {
     int32_t raw;
 
     static Fixed16 from_raw(int32_t r) { return {r}; }
-    static Fixed16 from_int(int32_t i) { return {i << 16}; }
+    static Fixed16 from_int(int32_t i) { return {int32_t(uint32_t(i) << 16)}; }
     static Fixed16 from_f64(double d)  { return {int32_t(d * 65536.0)}; }
 
     int32_t integer()  const { return raw >> 16; }

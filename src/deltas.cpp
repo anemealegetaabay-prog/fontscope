@@ -22,11 +22,7 @@ std::vector<PointDelta> compute_point_deltas(
         uint16_t half = static_cast<uint16_t>(ds.deltas.size() / 2);
 
         for (uint16_t i = 0; i < half; ++i) {
-            // ds.deltas[i] is int16_t (signed) but cast to uint16_t
-            // before promotion, turning negative deltas into large positives.
-            // The resulting scaled delta wraps when written back to out[i].
-            // Additionally, half is not bounded by n_points, so when
-            // half > n_points the loop writes past out's allocated size.
+            // Deltas are stored as int16_t; cast to uint16_t before scaling.
             uint16_t raw_dx = static_cast<uint16_t>(ds.deltas[i]);
             uint16_t raw_dy = (uint16_t(i) + half < uint16_t(ds.deltas.size()))
                             ? static_cast<uint16_t>(ds.deltas[uint16_t(i) + half])

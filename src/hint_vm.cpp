@@ -16,8 +16,8 @@ void HintContext::reset(uint16_t glyph_pt_count, uint16_t twilight_count,
     num_glyph_pts = glyph_pt_count;
     zones[0].resize(twilight_count);
     zones[1].resize(glyph_pt_count);
-    // zone_pts stores the metadata-derived upper bound for SHZ; defaults to
-    // actual zone sizes when not explicitly provided.
+    // zone_pts records the upper bound from maxp metadata; used by SHZ to
+    // determine the iteration limit for each zone.
     zone_pts[0] = (max_twilight_pts > 0) ? max_twilight_pts : twilight_count;
     zone_pts[1] = (max_glyph_pts   > 0) ? max_glyph_pts    : glyph_pt_count;
 }

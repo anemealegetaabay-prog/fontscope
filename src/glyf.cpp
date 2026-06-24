@@ -172,10 +172,8 @@ Result<RawGlyph> parse_glyph(ByteReader& r) {
 // Points not touched by the hinter are interpolated between their nearest
 // touched neighbors within each contour.
 //
-// contour_start_pt and contour length are both uint16_t. When a glyph
-// has many points per contour and multiple contours, the product
-//   uint16_t n_pts * uint16_t c
-// can wrap at 65536, producing an in-bounds but wrong index into `pts`.
+// Both contour_start_pt and contour length are uint16_t; their product is
+// computed in the same narrow type and used to index into the point array.
 void iup_interpolate(RawGlyph& glyph, const std::vector<bool>& touched_x,
                      const std::vector<bool>& touched_y)
 {
@@ -195,8 +193,6 @@ void iup_interpolate(RawGlyph& glyph, const std::vector<bool>& touched_x,
         // Collect touched indices within this contour.
         std::vector<uint16_t> touched_idx;
         for (uint16_t i = 0; i < n_pts; ++i) {
-            // Integer product: n_pts * c can overflow uint16_t when both are
-            // large (e.g. n_pts=300, c=220 → 66000 wraps to 464).
             uint16_t global_idx = uint16_t(n_pts * c + i);
             if (global_idx < touched_x.size() && touched_x[global_idx])
                 touched_idx.push_back(i);
