@@ -16,29 +16,42 @@ CXXFLAGS="$CXXFLAGS -fsanitize=address,undefined,fuzzer-no-link"
 CXXFLAGS="$CXXFLAGS -fno-omit-frame-pointer"
 
 SRCS=(
-    src/fixed.cpp
-    src/sfnt.cpp
-    src/tables.cpp
+    src/avar.cpp
+    src/bitmap.cpp
+    src/cache.cpp
     src/cmap.cpp
-    src/loca.cpp
-    src/glyf.cpp
-    src/hint_vm.cpp
     src/colr.cpp
     src/cpal.cpp
-    src/bitmap.cpp
-    src/variation.cpp
     src/deltas.cpp
-    src/name_table.cpp
+    src/fixed.cpp
+    src/font_diff.cpp
     src/fvar.cpp
-    src/avar.cpp
-    src/kern.cpp
+    src/glyf.cpp
+    src/glyph_loader.cpp
+    src/hb_compat.cpp
+    src/hint_vm.cpp
     src/inspect.cpp
-    src/validate.cpp
+    src/inspect_json.cpp
+    src/kern.cpp
+    src/layout.cpp
+    src/loca.cpp
+    src/matrix.cpp
     src/metrics.cpp
+    src/name_table.cpp
+    src/outline_stats.cpp
+    src/pipeline.cpp
     src/raster.cpp
     src/raster_aa.cpp
-    src/glyph_loader.cpp
-    src/pipeline.cpp
+    src/sfnt.cpp
+    src/shaper.cpp
+    src/subsetter.cpp
+    src/svg_export.cpp
+    src/tables.cpp
+    src/text_render.cpp
+    src/unicode_blocks.cpp
+    src/validate.cpp
+    src/variation.cpp
+    src/version.cpp
 )
 
 # Compile library objects.
