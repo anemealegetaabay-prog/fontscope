@@ -43,6 +43,11 @@ static int32_t to_26dot6(FUnit v, Fixed16 scale, Fixed16 offset) {
     return fixed_to_26dot6(pix);
 }
 
+// Promote 26.6 fixed pixel coords to 16.16 without left-shifting negatives.
+static int32_t to_16dot16_from_26dot6(int32_t v_26dot6) {
+    return v_26dot6 * 1024;
+}
+
 // Check if a contour goes clockwise (positive winding) in screen coords.
 static int8_t contour_winding(const std::vector<FPoint>& pts,
                                uint16_t start, uint16_t end,
@@ -205,10 +210,10 @@ std::vector<Edge> build_edges(const std::vector<FPoint>& points,
 
             int32_t dy = y1 - y0;
             Edge e{};
-            e.y_top    = y0 >> 6;
-            e.y_bot    = (y1 - 1) >> 6;
-            e.x        = Fixed16::from_raw((x0 << 10));  // 26.6 → 16.16
-            e.dx       = Fixed16::from_raw(((x1 - x0) << 10) / (dy ? dy : 1));
+            e.y_top    = y0 / 64;
+            e.y_bot    = (y1 - 1) / 64;
+            e.x        = Fixed16::from_raw(to_16dot16_from_26dot6(x0));
+            e.dx       = Fixed16::from_raw(to_16dot16_from_26dot6(x1 - x0) / (dy ? dy : 1));
             e.winding  = w;
             edges.push_back(e);
         }

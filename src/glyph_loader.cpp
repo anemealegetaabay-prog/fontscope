@@ -8,6 +8,11 @@ namespace fontscope {
 
 static constexpr int kMaxCompositeDepth = 8;
 
+// Largest CVT table any real font ships; prevents forged table lengths from
+// forcing multi-gigabyte vector reservations during hint-context setup.
+static constexpr uint32_t kMaxCvtEntries = 1u << 14;
+static constexpr uint32_t kMaxHintStorage = 1u << 12;
+
 HintContext make_hint_context(const FontFace& font, uint16_t glyph_id, uint16_t ppem) {
     HintContext ctx;
 
@@ -18,6 +23,13 @@ HintContext make_hint_context(const FontFace& font, uint16_t glyph_id, uint16_t 
         ByteReader cr(font.raw_data.data(), font.raw_data.size());
         ByteReader sub = cr.sub_reader(cvt_rec->offset, cvt_rec->length);
         uint32_t n_cvt = cvt_rec->length / 2;
+        if (cvt_rec->offset < font.raw_data.size()) {
+            uint32_t avail = uint32_t((font.raw_data.size() - cvt_rec->offset) / 2);
+            if (n_cvt > avail) n_cvt = avail;
+        } else {
+            n_cvt = 0;
+        }
+        if (n_cvt > kMaxCvtEntries) n_cvt = kMaxCvtEntries;
         cvt_init.reserve(n_cvt);
         for (uint32_t i = 0; i < n_cvt; ++i) {
             int16_t v = sub.read_i16_be();
@@ -30,6 +42,7 @@ HintContext make_hint_context(const FontFace& font, uint16_t glyph_id, uint16_t 
 
     const auto& mp = font.maxp;
     uint32_t storage  = mp.max_storage       > 0 ? mp.max_storage       : 64u;
+    if (storage > kMaxHintStorage) storage = kMaxHintStorage;
     uint16_t twilight = mp.max_twilight_points > 0 ? mp.max_twilight_points : 8u;
 
     // Use maxp limits as zone_pts so hints can reference up to the declared max.

@@ -115,19 +115,19 @@ static Result<RawGlyph> parse_composite(ByteReader& r,
 
         if (comp.flags & kCompWeHaveAScale) {
             int16_t scale = r.read_i16_be();
-            comp.xx = comp.yy = Fixed16::from_raw(int32_t(scale) << 2);
+            comp.xx = comp.yy = Fixed16::from_raw(int32_t(scale) * 4);
         } else if (comp.flags & kCompWeHaveXYScale) {
             int16_t sx = r.read_i16_be();
             int16_t sy = r.read_i16_be();
-            comp.xx = Fixed16::from_raw(int32_t(sx) << 2);
-            comp.yy = Fixed16::from_raw(int32_t(sy) << 2);
+            comp.xx = Fixed16::from_raw(int32_t(sx) * 4);
+            comp.yy = Fixed16::from_raw(int32_t(sy) * 4);
         } else if (comp.flags & kCompWeHaveA2x2) {
             int16_t xx = r.read_i16_be(), xy = r.read_i16_be();
             int16_t yx = r.read_i16_be(), yy = r.read_i16_be();
-            comp.xx = Fixed16::from_raw(int32_t(xx) << 2);
-            comp.xy = Fixed16::from_raw(int32_t(xy) << 2);
-            comp.yx = Fixed16::from_raw(int32_t(yx) << 2);
-            comp.yy = Fixed16::from_raw(int32_t(yy) << 2);
+            comp.xx = Fixed16::from_raw(int32_t(xx) * 4);
+            comp.xy = Fixed16::from_raw(int32_t(xy) * 4);
+            comp.yx = Fixed16::from_raw(int32_t(yx) * 4);
+            comp.yy = Fixed16::from_raw(int32_t(yy) * 4);
         }
 
         if (!r.ok()) return Result<RawGlyph>::error(Status::TruncatedInput);

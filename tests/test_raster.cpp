@@ -58,10 +58,26 @@ static void test_render_glyph_bounded_work() {
     CHECK(!buf.pixels.empty());
 }
 
+// Negative design coordinates must not trigger undefined left-shift in edge build.
+static void test_render_glyph_negative_coords() {
+    std::vector<FPoint> points = {
+        {-500, -300, true},
+        { 200, -100, true},
+        { 100,  400, true},
+    };
+    std::vector<uint16_t> end_pts = {2};
+
+    RasterBuf buf;
+    render_glyph(points, end_pts, 1000, 16, buf);
+    CHECK(buf.width == 16);
+    CHECK(!buf.pixels.empty());
+}
+
 int main() {
     test_render_glyph_off_curve_wrap();
     test_render_glyph_off_then_on_wrap();
     test_render_glyph_bounded_work();
+    test_render_glyph_negative_coords();
     if (failures) {
         fprintf(stderr, "test_raster: %d failure(s)\n", failures);
         return 1;
