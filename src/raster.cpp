@@ -61,12 +61,21 @@ static int8_t contour_winding(const std::vector<FPoint>& pts,
     return sum >= 0 ? 1 : -1;
 }
 
-void flatten_quadratic(const FPoint& p0, const FPoint& p1, const FPoint& p2,
-                        std::vector<FPoint>& out, int depth)
-{
-    if (depth > 10) { out.push_back(p2); return; }
+// Upper bound on flattened points produced for a single glyph outline. Real
+// glyphs need at most a few thousand even at large sizes; this caps total work
+// so an outline whose control points never satisfy the flatness test cannot
+// force unbounded subdivision across many curves and glyphs.
+static constexpr size_t kMaxOutlinePoints = 1u << 15;
 
-    // Midpoints.
+// Quadratic flattening with a shared work budget for the whole outline.
+// Subdivision stops when the segment is flat, the depth cap is reached, or the
+// outline-wide budget is exhausted — whichever comes first.
+static void flatten_quadratic_budgeted(const FPoint& p0, const FPoint& p1, const FPoint& p2,
+                                       std::vector<FPoint>& out, int depth, size_t& budget)
+{
+    if (budget == 0) return;
+    if (depth > 10) { out.push_back(p2); --budget; return; }
+
     FPoint m01 = {FUnit((int32_t(p0.x)+p1.x)/2), FUnit((int32_t(p0.y)+p1.y)/2), false};
     FPoint m12 = {FUnit((int32_t(p1.x)+p2.x)/2), FUnit((int32_t(p1.y)+p2.y)/2), false};
     FPoint mid = {FUnit((int32_t(m01.x)+m12.x)/2), FUnit((int32_t(m01.y)+m12.y)/2), true};
@@ -76,16 +85,26 @@ void flatten_quadratic(const FPoint& p0, const FPoint& p1, const FPoint& p2,
     int32_t dy = int32_t(mid.y) - int32_t(p1.y);
     if (dx*dx + dy*dy <= 1) {
         out.push_back(p2);
+        --budget;
         return;
     }
 
-    flatten_quadratic(p0, m01, mid, out, depth+1);
-    flatten_quadratic(mid, m12, p2, out, depth+1);
+    flatten_quadratic_budgeted(p0, m01, mid, out, depth+1, budget);
+    flatten_quadratic_budgeted(mid, m12, p2, out, depth+1, budget);
+}
+
+void flatten_quadratic(const FPoint& p0, const FPoint& p1, const FPoint& p2,
+                        std::vector<FPoint>& out, int depth)
+{
+    size_t budget = kMaxOutlinePoints;
+    flatten_quadratic_budgeted(p0, p1, p2, out, depth, budget);
 }
 
 // Flatten contour into a list of on-curve points (resolving off-curve runs).
+// The shared budget bounds total flattening work across the whole glyph.
 static std::vector<FPoint> flatten_contour(const std::vector<FPoint>& pts,
-                                            uint16_t start, uint16_t end)
+                                            uint16_t start, uint16_t end,
+                                            size_t& budget)
 {
     std::vector<FPoint> result;
     uint16_t n = end - start + 1;
@@ -96,14 +115,15 @@ static std::vector<FPoint> flatten_contour(const std::vector<FPoint>& pts,
     while (first_on <= end && !pts[first_on].on_curve) ++first_on;
     if (first_on > end) {
         // All off-curve: synthesize midpoints.
-        for (uint16_t i = 0; i < n; ++i) {
+        for (uint16_t i = 0; i < n && budget > 0; ++i) {
             uint16_t j = start + i;
             uint16_t k = start + (i+1) % n;
             FPoint synth = {FUnit((int32_t(pts[j].x)+pts[k].x)/2),
                              FUnit((int32_t(pts[j].y)+pts[k].y)/2), true};
-            flatten_quadratic(synth, pts[j], {FUnit((int32_t(pts[j].x)+pts[k].x)/2),
-                                              FUnit((int32_t(pts[j].y)+pts[k].y)/2), true},
-                               result);
+            flatten_quadratic_budgeted(synth, pts[j],
+                {FUnit((int32_t(pts[j].x)+pts[k].x)/2),
+                 FUnit((int32_t(pts[j].y)+pts[k].y)/2), true},
+                result, 0, budget);
         }
         return result;
     }
@@ -111,8 +131,8 @@ static std::vector<FPoint> flatten_contour(const std::vector<FPoint>& pts,
     result.push_back(pts[first_on]);
 
     // Walk the contour with a bounded step counter so index wrap cannot skip
-    // past first_on and spin forever.
-    for (uint16_t step = 1; step < n; ) {
+    // past first_on and spin forever; stop early once the work budget is spent.
+    for (uint16_t step = 1; step < n && budget > 0; ) {
         uint16_t rel = uint16_t((first_on - start) + step);
         uint16_t i   = start + (rel % n);
 
@@ -132,10 +152,10 @@ static std::vector<FPoint> flatten_contour(const std::vector<FPoint>& pts,
         if (!p2.on_curve) {
             FPoint implied = {FUnit((int32_t(cur.x) + p2.x) / 2),
                               FUnit((int32_t(cur.y) + p2.y) / 2), true};
-            flatten_quadratic(p0, ctrl, implied, result);
+            flatten_quadratic_budgeted(p0, ctrl, implied, result, 0, budget);
             ++step;
         } else {
-            flatten_quadratic(p0, ctrl, p2, result);
+            flatten_quadratic_budgeted(p0, ctrl, p2, result, 0, budget);
             if (next != first_on)
                 result.push_back(p2);
             step = uint16_t(step + 2);
@@ -153,6 +173,9 @@ std::vector<Edge> build_edges(const std::vector<FPoint>& points,
     std::vector<Edge> edges;
     uint16_t contour_start = 0;
 
+    // Total flattening budget shared across every contour of this glyph.
+    size_t budget = kMaxOutlinePoints;
+
     for (uint16_t c = 0; c < uint16_t(end_pts.size()); ++c) {
         uint16_t contour_end = end_pts[c];
         if (contour_end < contour_start || contour_end >= points.size()) {
@@ -160,7 +183,7 @@ std::vector<Edge> build_edges(const std::vector<FPoint>& points,
             continue;
         }
 
-        std::vector<FPoint> flat = flatten_contour(points, contour_start, contour_end);
+        std::vector<FPoint> flat = flatten_contour(points, contour_start, contour_end, budget);
         int8_t wind = contour_winding(points, contour_start, contour_end,
                                        scale_x, scale_y);
 

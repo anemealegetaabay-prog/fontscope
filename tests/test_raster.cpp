@@ -39,9 +39,29 @@ static void test_render_glyph_off_then_on_wrap() {
     CHECK(!buf.pixels.empty());
 }
 
+// Large outline of off-curve points with wide coordinate swings — exercises the
+// total-work budget so flattening stays bounded instead of exploding.
+static void test_render_glyph_bounded_work() {
+    std::vector<FPoint> points;
+    points.push_back({0, 0, true});
+    for (int i = 0; i < 4000; ++i) {
+        bool on = (i % 2) == 0;
+        FUnit x = FUnit((i * 9173) % 30000 - 15000);
+        FUnit y = FUnit((i * 4271) % 30000 - 15000);
+        points.push_back({x, y, on});
+    }
+    std::vector<uint16_t> end_pts = {uint16_t(points.size() - 1)};
+
+    RasterBuf buf;
+    render_glyph(points, end_pts, 1000, 16, buf);
+    CHECK(buf.width == 16);
+    CHECK(!buf.pixels.empty());
+}
+
 int main() {
     test_render_glyph_off_curve_wrap();
     test_render_glyph_off_then_on_wrap();
+    test_render_glyph_bounded_work();
     if (failures) {
         fprintf(stderr, "test_raster: %d failure(s)\n", failures);
         return 1;
