@@ -110,35 +110,36 @@ static std::vector<FPoint> flatten_contour(const std::vector<FPoint>& pts,
 
     result.push_back(pts[first_on]);
 
-    uint16_t i = first_on + 1;
-    while (i != first_on) {
-        if (i > end) i = start;
-        if (i == first_on) break;
+    // Walk the contour with a bounded step counter so index wrap cannot skip
+    // past first_on and spin forever.
+    for (uint16_t step = 1; step < n; ) {
+        uint16_t rel = uint16_t((first_on - start) + step);
+        uint16_t i   = start + (rel % n);
 
         const FPoint& cur = pts[i];
         if (cur.on_curve) {
             result.push_back(cur);
-        } else {
-            // Off-curve: look ahead for the next point.
-            uint16_t next = (i < end) ? i+1 : start;
-            const FPoint& p2 = pts[next];
-            FPoint p0 = result.back();
-            FPoint ctrl = cur;
-
-            if (!p2.on_curve) {
-                // Two consecutive off-curve: synthesize midpoint as on-curve.
-                FPoint implied = {FUnit((int32_t(cur.x)+p2.x)/2),
-                                   FUnit((int32_t(cur.y)+p2.y)/2), true};
-                flatten_quadratic(p0, ctrl, implied, result);
-            } else {
-                flatten_quadratic(p0, ctrl, p2, result);
-                ++i;  // skip the on-curve we already consumed
-                if (i > end) i = start;
-                if (i != first_on) result.push_back(pts[i]);
-            }
+            ++step;
+            continue;
         }
-        ++i;
-        if (i > end) i = start;
+
+        uint16_t next_rel = uint16_t(rel + 1);
+        uint16_t next     = start + (next_rel % n);
+        const FPoint& p2  = pts[next];
+        FPoint p0         = result.back();
+        FPoint ctrl       = cur;
+
+        if (!p2.on_curve) {
+            FPoint implied = {FUnit((int32_t(cur.x) + p2.x) / 2),
+                              FUnit((int32_t(cur.y) + p2.y) / 2), true};
+            flatten_quadratic(p0, ctrl, implied, result);
+            ++step;
+        } else {
+            flatten_quadratic(p0, ctrl, p2, result);
+            if (next != first_on)
+                result.push_back(p2);
+            step = uint16_t(step + 2);
+        }
     }
 
     return result;

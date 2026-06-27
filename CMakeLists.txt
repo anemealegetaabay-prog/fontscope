@@ -86,6 +86,7 @@ if(BUILD_TESTS)
     add_fs_test(test_layout)
     add_fs_test(test_svg)
     add_fs_test(test_subsetter)
+    add_fs_test(test_raster)
 endif()
 
 if(BUILD_FUZZERS)
