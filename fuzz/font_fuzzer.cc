@@ -55,16 +55,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     for (uint16_t gid = 0; gid < n; ++gid) {
         HintContext ctx = make_hint_context(font, gid, opts.ppem);
 
-        // Full load+hint+IUP+variation path.
+        // Full load+hint+IUP+variation path (no rasterization here — see
+        // raster_fuzzer for isolated raster coverage).
         auto pg = load_and_process_glyph(font, ctx, vstore, gid, opts);
-        if (!pg.ok()) continue;
-
-        // Rasterize if we got a valid outline.
-        if (!pg.value.is_empty && !pg.value.points.empty()) {
-            RasterBuf buf;
-            render_glyph(pg.value.points, pg.value.end_pts,
-                         font.head.units_per_em, 16, buf);
-        }
+        (void)pg;
     }
 
     // Exercise COLR color layer blending path.
