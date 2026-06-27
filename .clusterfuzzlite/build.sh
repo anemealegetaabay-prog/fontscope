@@ -2,12 +2,12 @@
 
 # fontscope — ClusterFuzzLite build script.
 #
-# Compiles all library sources and links the fuzz harness with
+# Compiles all library sources and links every fuzz harness with
 # -fsanitize=fuzzer,address,undefined. The $OUT directory is provided
 # by the ClusterFuzzLite runner.
 
-SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SRC_DIR"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT_DIR"
 
 CXX="${CXX:-clang++}"
 CXXFLAGS="${CXXFLAGS:- -O1 -g}"
@@ -54,6 +54,14 @@ SRCS=(
     src/version.cpp
 )
 
+FUZZERS=(
+    font_fuzzer
+    hint_fuzzer
+    variation_fuzzer
+    colr_bitmap_fuzzer
+    raster_fuzzer
+)
+
 # Compile library objects.
 OBJ_FILES=()
 for f in "${SRCS[@]}"; do
@@ -62,14 +70,23 @@ for f in "${SRCS[@]}"; do
     OBJ_FILES+=("$obj")
 done
 
-# Build fuzz harness.
-$CXX $CXXFLAGS -fsanitize=fuzzer \
-    fuzz/font_fuzzer.cc \
-    "${OBJ_FILES[@]}" \
-    -o "$OUT/font_fuzzer"
+# Build fuzz harnesses.
+for fuzzer in "${FUZZERS[@]}"; do
+    $CXX $CXXFLAGS -fsanitize=fuzzer \
+        "fuzz/${fuzzer}.cc" \
+        "${OBJ_FILES[@]}" \
+        -o "$OUT/${fuzzer}"
 
-# Package seed corpus.
-if [ -d fuzz/corpus/font_fuzzer ] && \
-   [ "$(ls -A fuzz/corpus/font_fuzzer 2>/dev/null)" ]; then
-    zip -j "$OUT/font_fuzzer_seed_corpus.zip" fuzz/corpus/font_fuzzer/*
+    corpus_dir="fuzz/corpus/${fuzzer}"
+    if [ -d "$corpus_dir" ] && [ "$(ls -A "$corpus_dir" 2>/dev/null)" ]; then
+        zip -j "$OUT/${fuzzer}_seed_corpus.zip" "$corpus_dir"/*
+    fi
+done
+
+# Shared dictionary for all harnesses.
+if [ -f fuzz/font.dict ]; then
+    cp fuzz/font.dict "$OUT/font_fuzzer.dict"
+    for fuzzer in "${FUZZERS[@]}"; do
+        cp fuzz/font.dict "$OUT/${fuzzer}.dict"
+    done
 fi

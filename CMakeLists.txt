@@ -87,11 +87,21 @@ if(BUILD_TESTS)
     add_fs_test(test_svg)
     add_fs_test(test_subsetter)
     add_fs_test(test_raster)
+    add_fs_test(test_glyph_loader)
 endif()
 
 if(BUILD_FUZZERS)
-    add_executable(font_fuzzer fuzz/font_fuzzer.cc)
-    target_link_libraries(font_fuzzer fontscope)
-    target_compile_options(font_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
-    target_link_options(font_fuzzer PRIVATE -fsanitize=fuzzer,address,undefined)
+    set(FUZZ_TARGETS
+        font_fuzzer
+        hint_fuzzer
+        variation_fuzzer
+        colr_bitmap_fuzzer
+        raster_fuzzer
+    )
+    foreach(target IN LISTS FUZZ_TARGETS)
+        add_executable(${target} fuzz/${target}.cc)
+        target_link_libraries(${target} fontscope)
+        target_compile_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)
+        target_link_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)
+    endforeach()
 endif()
