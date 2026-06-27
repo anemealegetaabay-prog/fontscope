@@ -6,7 +6,7 @@
 # -fsanitize=fuzzer,address,undefined. The $OUT directory is provided
 # by the ClusterFuzzLite runner.
 
-SRC_DIR="$(dirname "$0")/.."
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SRC_DIR"
 
 CXX="${CXX:-clang++}"
