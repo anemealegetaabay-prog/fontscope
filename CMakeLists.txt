@@ -92,6 +92,12 @@ if(BUILD_TESTS)
 endif()
 
 if(BUILD_FUZZERS)
+    # The harnesses link the static library, so the library itself must be
+    # instrumented for the sanitizers to see into table parsing and glyph
+    # processing — not just the harness translation units.
+    target_compile_options(fontscope PRIVATE
+        -fsanitize=address,undefined -fno-omit-frame-pointer)
+
     set(FUZZ_TARGETS
         font_fuzzer
         hint_fuzzer
