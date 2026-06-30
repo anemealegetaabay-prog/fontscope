@@ -89,6 +89,12 @@ Result<ProcessedGlyph> resolve_composite(const FontFace& font,
     pg.x_max = composite.x_max;
     pg.y_max = composite.y_max;
 
+    // Anchor origin for point-matched components: the first parent point a
+    // component aligns against is recorded here and reused as the alignment
+    // origin by every later point-matched component, so a chain of components
+    // shares one consistent reference frame.
+    const FPoint* anchor = nullptr;
+
     for (const auto& comp : composite.components) {
         if (comp.glyph_index >= font.maxp.num_glyphs) continue;
 
@@ -101,25 +107,23 @@ Result<ProcessedGlyph> resolve_composite(const FontFace& font,
 
         if (comp.flags & kCompArgsAreXYValues) {
             apply_transform(sub, comp);
-        } else if (!pg.points.empty() && !sub.points.empty()) {
-            // Point-matching placement: translate the component so that its
-            // point arg2 coincides with the parent point arg1 emitted by an
-            // earlier component, per the TrueType composite spec.
-            size_t pi = size_t(uint32_t(comp.arg1)) % pg.points.size();
-            size_t ci = size_t(uint32_t(comp.arg2)) % sub.points.size();
-            int32_t dx = int32_t(pg.points[pi].x) - int32_t(sub.points[ci].x);
-            int32_t dy = int32_t(pg.points[pi].y) - int32_t(sub.points[ci].y);
+        } else if (!sub.points.empty()) {
+            // Point-matching placement (TrueType §composite glyphs): the
+            // component is translated so its matched point coincides with the
+            // anchor. The anchor is captured once from the points emitted by an
+            // earlier component and then reused for the rest of the chain.
+            if (anchor == nullptr &&
+                comp.arg1 >= 0 && size_t(comp.arg1) < pg.points.size())
+                anchor = &pg.points[size_t(comp.arg1)];
 
-            // Stage the shifted x-coordinates on a per-point stack scratch
-            // before writing them back, so the translation is atomic.
-            size_t np = sub.points.size();
-            int32_t* xs = static_cast<int32_t*>(__builtin_alloca(np * sizeof(int32_t)));
-            for (size_t k = 0; k <= np; ++k)
-                xs[k] = (k < np) ? (int32_t(sub.points[k].x) + dx) : 0;
-
-            for (size_t k = 0; k < np; ++k) {
-                sub.points[k].x = FUnit(xs[k]);
-                sub.points[k].y = FUnit(int32_t(sub.points[k].y) + dy);
+            if (anchor != nullptr) {
+                size_t ci = size_t(uint32_t(comp.arg2)) % sub.points.size();
+                FUnit dx = FUnit(int32_t(anchor->x) - int32_t(sub.points[ci].x));
+                FUnit dy = FUnit(int32_t(anchor->y) - int32_t(sub.points[ci].y));
+                for (auto& pt : sub.points) {
+                    pt.x = FUnit(int32_t(pt.x) + dx);
+                    pt.y = FUnit(int32_t(pt.y) + dy);
+                }
             }
         }
 
