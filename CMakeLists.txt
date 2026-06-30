@@ -98,6 +98,9 @@ if(BUILD_FUZZERS)
         variation_fuzzer
         colr_bitmap_fuzzer
         raster_fuzzer
+        layout_fuzzer
+        bitmap_strike_fuzzer
+        cache_fuzzer
     )
     foreach(target IN LISTS FUZZ_TARGETS)
         add_executable(${target} fuzz/${target}.cc)

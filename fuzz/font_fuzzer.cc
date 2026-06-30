@@ -80,5 +80,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     for (uint32_t cp = 0x20; cp < 0x100; cp += 16)
         (void)font.cmap.lookup(cp);
 
+    // Resolve PostScript glyph names (post v2 name index path).
+    for (uint16_t gid = 0; gid < n; ++gid) {
+        std::string name = post_glyph_name(font.post, gid);
+        (void)name;
+    }
+
     return 0;
 }

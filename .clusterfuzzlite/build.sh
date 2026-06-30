@@ -61,6 +61,9 @@ FUZZERS=(
     variation_fuzzer
     colr_bitmap_fuzzer
     raster_fuzzer
+    layout_fuzzer
+    bitmap_strike_fuzzer
+    cache_fuzzer
 )
 
 # Compile library objects.
