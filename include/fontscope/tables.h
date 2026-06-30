@@ -73,6 +73,7 @@ struct HmtxTable {
 };
 
 // Parsed post table (version, italic angle, underline position/thickness).
+// For version 2.0 the glyph-name index and custom name strings are also kept.
 struct PostTable {
     Fixed16  version;
     Fixed16  italic_angle;
@@ -83,6 +84,13 @@ struct PostTable {
     uint32_t max_mem_type42;
     uint32_t min_mem_type1;
     uint32_t max_mem_type1;
+
+    // Version 2.0 glyph-name table (empty for other versions).
+    // name_index[gid] < 258 selects a standard Macintosh name; values >= 258
+    // index custom_names[name_index[gid] - 258].
+    uint16_t                 num_names{0};
+    std::vector<uint16_t>    name_index;
+    std::vector<std::string> custom_names;
 };
 
 // OS/2 table (selected fields used for metrics).
@@ -126,5 +134,11 @@ Result<Os2Table>  parse_os2(ByteReader& r);
 
 // Retrieve horizontal metrics for a single glyph.
 GlyphHMetrics get_glyph_hmetrics(const HmtxTable& hmtx, uint16_t glyph_id);
+
+// Resolve the PostScript glyph name for a glyph id from a version 2.0 post
+// table. Returns a standard Macintosh name for indices below 258 and the
+// font-supplied custom name otherwise. Empty string when no name table is
+// present.
+std::string post_glyph_name(const PostTable& post, uint16_t glyph_id);
 
 } // namespace fontscope

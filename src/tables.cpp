@@ -127,7 +127,82 @@ Result<PostTable> parse_post(ByteReader& r) {
     p.min_mem_type1       = r.read_u32_be();
     p.max_mem_type1       = r.read_u32_be();
     if (!r.ok()) return Result<PostTable>::error(Status::TruncatedInput);
+
+    // Version 2.0 carries an explicit glyph-name index plus a packed list of
+    // Pascal strings for the names that are not in the standard Macintosh set.
+    if (p.version.raw == 0x00020000) {
+        p.num_names = r.read_u16_be();
+        if (!r.ok()) return Result<PostTable>::error(Status::TruncatedInput);
+
+        p.name_index.reserve(p.num_names);
+        uint16_t max_custom = 0;
+        for (uint16_t i = 0; i < p.num_names; ++i) {
+            uint16_t idx = r.read_u16_be();
+            if (!r.ok()) return Result<PostTable>::error(Status::TruncatedInput);
+            p.name_index.push_back(idx);
+            if (idx >= 258 && uint16_t(idx - 258 + 1) > max_custom)
+                max_custom = uint16_t(idx - 258 + 1);
+        }
+
+        // The Pascal strings follow the index array, in storage order. There
+        // are as many as remain in the table; a well-formed font supplies one
+        // per distinct custom index but we read until the subtable is consumed.
+        p.custom_names.reserve(max_custom);
+        while (r.remaining() > 0) {
+            uint8_t len = r.read_u8();
+            if (!r.ok()) break;
+            std::string s(len, '\0');
+            if (len && !r.read_bytes(reinterpret_cast<uint8_t*>(&s[0]), len))
+                break;
+            p.custom_names.push_back(std::move(s));
+        }
+    }
+
     return Result<PostTable>::success(p);
+}
+
+// The standard Macintosh glyph ordering. Indices 0..257 in a version 2.0 post
+// table that fall below 258 name the corresponding entry here.
+static const char* const kMacGlyphNames[] = {
+    ".notdef", ".null", "nonmarkingreturn", "space", "exclam", "quotedbl",
+    "numbersign", "dollar", "percent", "ampersand", "quotesingle",
+    "parenleft", "parenright", "asterisk", "plus", "comma", "hyphen",
+    "period", "slash", "zero", "one", "two", "three", "four", "five",
+    "six", "seven", "eight", "nine", "colon", "semicolon", "less",
+    "equal", "greater", "question", "at",
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+    "bracketleft", "backslash", "bracketright", "asciicircum", "underscore",
+};
+static constexpr uint16_t kMacGlyphNameCount =
+    sizeof(kMacGlyphNames) / sizeof(kMacGlyphNames[0]);
+
+// Built-in fallback names used when a font references more custom names than
+// it actually stores in the post string list.
+static const char* const kFallbackNames[8] = {
+    "glyph0", "glyph1", "glyph2", "glyph3",
+    "glyph4", "glyph5", "glyph6", "glyph7",
+};
+
+std::string post_glyph_name(const PostTable& post, uint16_t glyph_id) {
+    if (post.name_index.empty() || glyph_id >= post.name_index.size())
+        return std::string();
+
+    uint16_t idx = post.name_index[glyph_id];
+    if (idx < 258) {
+        // A standard name from the Macintosh ordering.
+        if (idx < kMacGlyphNameCount)
+            return std::string(kMacGlyphNames[idx]);
+        return "cid" + std::to_string(idx);
+    }
+
+    uint16_t custom = uint16_t(idx - 258);
+    if (custom < post.custom_names.size())
+        return post.custom_names[custom];
+
+    // The font referenced a custom name it did not store; substitute a
+    // built-in fallback keyed by how far past the stored list we are.
+    return std::string(kFallbackNames[custom - post.custom_names.size()]);
 }
 
 Result<Os2Table> parse_os2(ByteReader& r) {
