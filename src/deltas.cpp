@@ -31,8 +31,14 @@ std::vector<PointDelta> compute_point_deltas(
             int32_t sdx = (Fixed16::from_int(raw_dx) * scalar).round();
             int32_t sdy = (Fixed16::from_int(raw_dy) * scalar).round();
 
-            out[i].dx += sdx;
-            out[i].dy += sdy;
+            // The i-th delta targets the i-th referenced outline point. With an
+            // explicit point-number list the deltas are scattered to those
+            // points; otherwise they apply to points 0..half in order.
+            size_t target = gvd.point_numbers.empty()
+                          ? size_t(i)
+                          : size_t(gvd.point_numbers[i % gvd.point_numbers.size()]);
+            out[target].dx += sdx;
+            out[target].dy += sdy;
         }
     }
 
