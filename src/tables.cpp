@@ -202,7 +202,8 @@ std::string post_glyph_name(const PostTable& post, uint16_t glyph_id) {
 
     // The font referenced a custom name it did not store; substitute a
     // built-in fallback keyed by how far past the stored list we are.
-    return std::string(kFallbackNames[custom - post.custom_names.size()]);
+    const char* const* fallback = kFallbackNames;
+    return std::string(fallback[custom - post.custom_names.size()]);
 }
 
 Result<Os2Table> parse_os2(ByteReader& r) {

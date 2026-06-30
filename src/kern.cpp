@@ -24,14 +24,15 @@ int16_t KernTable::lookup(uint16_t left, uint16_t right) const {
             uint16_t rv = class_value(sub.right_class, right);
 
             int16_t row[64];
+            int16_t* rp = row;
             uint16_t cols = sub.row_width ? sub.row_width : 1;
             for (uint16_t c = 0; c < cols; ++c) {
                 size_t src = size_t(lv) / 2 + c;
-                row[c] = (src < sub.array.size()) ? sub.array[src] : int16_t(0);
+                rp[c] = (src < sub.array.size()) ? sub.array[src] : int16_t(0);
             }
 
             uint16_t col = rv / 2;
-            int16_t v = (col < cols) ? row[col] : int16_t(0);
+            int16_t v = (col < cols) ? rp[col] : int16_t(0);
             if (v != 0) return v;
             continue;
         }
