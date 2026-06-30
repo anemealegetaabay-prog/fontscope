@@ -126,6 +126,25 @@ static void test_shz_bounds() {
     assert(r == ExecResult::Ok);
 }
 
+static void test_div_negative_dividend() {
+    HintContext ctx;
+    std::vector<Fixed16> cvt;
+    ctx.reset(4, 2, 4, cvt);
+
+    // PUSHW -1 (dividend), PUSHB 1 (divisor), DIV. The 26.6 fixed-point divide
+    // scales the dividend left by 6; with a negative dividend that must not
+    // invoke left-shift-of-negative UB.
+    uint8_t code[] = {
+        0xB8, 0xFF, 0xFF,  // PUSHW -1
+        0xB0, 1,           // PUSHB 1
+        0x62               // DIV
+    };
+    FpgmTable fpgm;
+    auto r = execute_hint_program(ctx, code, sizeof(code), fpgm);
+    assert(r == ExecResult::Ok);
+    assert(!ctx.stack.empty() && ctx.stack.back() == -64);  // (-1 * 64) / 1
+}
+
 int main() {
     test_push_pop();
     test_stack_arithmetic();
@@ -135,6 +154,7 @@ int main() {
     test_if_not_taken();
     test_max_iter_guard();
     test_shz_bounds();
+    test_div_negative_dividend();
     puts("test_hint_vm: all passed");
     return 0;
 }
