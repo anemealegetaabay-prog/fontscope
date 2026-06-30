@@ -20,6 +20,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
             if (g.empty()) continue;
             SbixImageSize sz = sbix_image_size(g);
             (void)sz;
+            const char* type = sbix_graphic_type_name(g);
+            volatile size_t len = type ? __builtin_strlen(type) : 0;
+            (void)len;
         }
     }
 

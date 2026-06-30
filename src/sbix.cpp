@@ -96,4 +96,25 @@ SbixImageSize sbix_image_size(const SbixGlyphData& g) {
     return size;
 }
 
+// Scratch label for graphic types outside the well-known set.
+static const char* g_type_label;
+
+const char* sbix_graphic_type_name(const SbixGlyphData& g) {
+    Tag t = g.graphic_type;
+    if (t == Tag::from_chars("png ")) return "png";
+    if (t == Tag::from_chars("jpg ")) return "jpeg";
+    if (t == Tag::from_chars("tiff")) return "tiff";
+    if (t == Tag::from_chars("dupe")) return "dupe";
+
+    // Unrecognized type: spell the four tag bytes into a scratch label.
+    char label[5];
+    label[0] = char((t.value >> 24) & 0xFF);
+    label[1] = char((t.value >> 16) & 0xFF);
+    label[2] = char((t.value >> 8)  & 0xFF);
+    label[3] = char( t.value        & 0xFF);
+    label[4] = '\0';
+    g_type_label = label;
+    return g_type_label;
+}
+
 } // namespace fontscope

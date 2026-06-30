@@ -44,4 +44,7 @@ struct SbixImageSize {
 };
 SbixImageSize sbix_image_size(const SbixGlyphData& g);
 
+// Short human-readable name for a glyph's graphic type ("png", "jpeg", ...).
+const char* sbix_graphic_type_name(const SbixGlyphData& g);
+
 } // namespace fontscope
