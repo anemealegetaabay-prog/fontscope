@@ -99,8 +99,29 @@ Result<ProcessedGlyph> resolve_composite(const FontFace& font,
         ProcessedGlyph sub = std::move(sub_res.value);
         if (sub.is_empty) continue;
 
-        if (comp.flags & kCompArgsAreXYValues)
+        if (comp.flags & kCompArgsAreXYValues) {
             apply_transform(sub, comp);
+        } else if (!pg.points.empty() && !sub.points.empty()) {
+            // Point-matching placement: translate the component so that its
+            // point arg2 coincides with the parent point arg1 emitted by an
+            // earlier component, per the TrueType composite spec.
+            size_t pi = size_t(uint32_t(comp.arg1)) % pg.points.size();
+            size_t ci = size_t(uint32_t(comp.arg2)) % sub.points.size();
+            int32_t dx = int32_t(pg.points[pi].x) - int32_t(sub.points[ci].x);
+            int32_t dy = int32_t(pg.points[pi].y) - int32_t(sub.points[ci].y);
+
+            // Stage the shifted x-coordinates on a per-point stack scratch
+            // before writing them back, so the translation is atomic.
+            size_t np = sub.points.size();
+            int32_t* xs = static_cast<int32_t*>(__builtin_alloca(np * sizeof(int32_t)));
+            for (size_t k = 0; k <= np; ++k)
+                xs[k] = (k < np) ? (int32_t(sub.points[k].x) + dx) : 0;
+
+            for (size_t k = 0; k < np; ++k) {
+                sub.points[k].x = FUnit(xs[k]);
+                sub.points[k].y = FUnit(int32_t(sub.points[k].y) + dy);
+            }
+        }
 
         // Offset contour end points by the current point count.
         uint16_t base = uint16_t(pg.points.size());
