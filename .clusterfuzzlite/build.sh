@@ -6,7 +6,17 @@
 # -fsanitize=fuzzer,address,undefined. The $OUT directory is provided
 # by the ClusterFuzzLite runner.
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Locate the repository root robustly: the build runner may invoke this script
+# either in place (.clusterfuzzlite/build.sh) or relocated to the repo root.
+# The repo root is whichever directory actually contains the sources.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [ -d "$SCRIPT_DIR/src" ]; then
+    ROOT_DIR="$SCRIPT_DIR"
+elif [ -d "$SCRIPT_DIR/../src" ]; then
+    ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+    ROOT_DIR="$(pwd)"
+fi
 cd "$ROOT_DIR"
 
 CXX="${CXX:-clang++}"
