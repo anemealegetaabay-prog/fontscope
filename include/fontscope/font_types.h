@@ -72,6 +72,7 @@ namespace tags {
     inline Tag GSUB() { return Tag::from_chars("GSUB"); }
     inline Tag GPOS() { return Tag::from_chars("GPOS"); }
     inline Tag CFF()  { return Tag::make('C','F','F',' '); }
+    inline Tag SBIX() { return Tag::from_chars("sbix"); }
 }
 
 } // namespace fontscope

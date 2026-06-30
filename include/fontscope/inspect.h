@@ -14,6 +14,7 @@
 #include "fontscope/fvar.h"
 #include "fontscope/avar.h"
 #include "fontscope/variation.h"
+#include "fontscope/sbix.h"
 
 namespace fontscope {
 
@@ -35,6 +36,7 @@ struct FontFace {
     CpalTable   cpal;
     FvarTable   fvar;
     AvarTable   avar;
+    SbixTable   sbix;
 
     bool has_os2{false};
     bool has_name{false};
@@ -42,6 +44,7 @@ struct FontFace {
     bool has_cpal{false};
     bool has_fvar{false};
     bool has_avar{false};
+    bool has_sbix{false};
 };
 
 // Load and parse a font from raw bytes.

@@ -41,6 +41,7 @@ set(LIB_SRCS
     src/pipeline.cpp
     src/raster.cpp
     src/raster_aa.cpp
+    src/sbix.cpp
     src/sfnt.cpp
     src/shaper.cpp
     src/subsetter.cpp

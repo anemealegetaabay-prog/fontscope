@@ -126,6 +126,14 @@ Result<FontFace> load_font(const uint8_t* data, size_t size) {
         if (res.ok()) { f.avar = std::move(res.value); f.has_avar = true; }
     }
 
+    // sbix
+    const TableRecord* sbix_rec = find_table(f.sfnt, tags::SBIX());
+    if (sbix_rec) {
+        ByteReader tr = r.sub_reader(sbix_rec->offset, sbix_rec->length);
+        auto res = parse_sbix(tr, f.maxp.num_glyphs);
+        if (res.ok()) { f.sbix = std::move(res.value); f.has_sbix = true; }
+    }
+
     return Result<FontFace>::success(std::move(f));
 }
 
