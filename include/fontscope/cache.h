@@ -115,4 +115,12 @@ std::optional<GlyphAtlas> build_glyph_atlas(
 // Look up the atlas slot for a glyph, nullptr if not present.
 const AtlasSlot* find_slot(const GlyphAtlas& atlas, uint16_t glyph_id);
 
+// Render a run of glyph ids through a shared cache, returning one result per
+// glyph. Adjacent glyphs are overlapped slightly using the previous glyph's
+// cached coverage so kerned pairs share a column.
+std::vector<RenderResult> render_run_cached(const FontFace& font,
+                                            const std::vector<uint16_t>& gids,
+                                            const PipelineConfig& cfg,
+                                            GlyphCache& cache);
+
 } // namespace fontscope

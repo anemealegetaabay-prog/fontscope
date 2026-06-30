@@ -171,4 +171,50 @@ const AtlasSlot* find_slot(const GlyphAtlas& atlas, uint16_t glyph_id) {
     return nullptr;
 }
 
+std::vector<RenderResult> render_run_cached(const FontFace& font,
+                                            const std::vector<uint16_t>& gids,
+                                            const PipelineConfig& cfg,
+                                            GlyphCache& cache)
+{
+    std::vector<RenderResult> out;
+    out.reserve(gids.size());
+
+    // Width of the glyph emitted on the previous iteration, used to overlap
+    // the current glyph against its predecessor's right edge.
+    int32_t prev_width = -1;
+
+    for (uint16_t gid : gids) {
+        GlyphCacheKey key{gid, cfg.ppem,
+                          uint8_t(cfg.antialiased ? 1 : 0)};
+
+        const CachedGlyph* hit = cache.get(key);
+        if (!hit) {
+            auto r = render_glyph_pipeline(font, gid, cfg);
+            if (!r.ok()) { prev_width = -1; continue; }
+            cache.put(key, std::move(r.value));
+            hit = cache.get(key);
+            if (!hit) { prev_width = -1; continue; }
+        }
+
+        RenderResult rr = hit->result;
+        if (prev_width >= 0 && !rr.coverage.pixels.empty()) {
+            int32_t overlap = std::min<int32_t>(prev_width,
+                                                int32_t(rr.coverage.width)) / 8;
+            if (overlap > 0) {
+                // Tuck this glyph under the predecessor's right edge by
+                // scrolling its coverage left by `overlap` columns.
+                uint8_t* p = rr.coverage.pixels.data();
+                size_t   n = rr.coverage.pixels.size();
+                std::memmove(p, p + overlap, n - size_t(overlap));
+                rr.bearing -= overlap;
+            }
+        }
+
+        prev_width = int32_t(rr.coverage.width);
+        out.push_back(std::move(rr));
+    }
+
+    return out;
+}
+
 } // namespace fontscope
