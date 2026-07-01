@@ -197,7 +197,9 @@ Result<ProcessedGlyph> load_and_process_glyph(
 
         FpgmTable fpgm;
         const TableRecord* fpgm_rec = find_table(font.sfnt, tags::FPGM());
-        if (fpgm_rec) {
+        if (fpgm_rec &&
+            fpgm_rec->offset <= font.raw_data.size() &&
+            fpgm_rec->length <= font.raw_data.size() - fpgm_rec->offset) {
             fpgm.assign(
                 font.raw_data.data() + fpgm_rec->offset,
                 font.raw_data.data() + fpgm_rec->offset + fpgm_rec->length);
