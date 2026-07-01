@@ -37,8 +37,9 @@ std::vector<PointDelta> compute_point_deltas(
             size_t target = gvd.point_numbers.empty()
                           ? size_t(i)
                           : size_t(gvd.point_numbers[i % gvd.point_numbers.size()]);
-            out[target].dx += sdx;
-            out[target].dy += sdy;
+            PointDelta* acc = out.data();
+            acc[target].dx += sdx;
+            acc[target].dy += sdy;
         }
     }
 
