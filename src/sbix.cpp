@@ -85,6 +85,7 @@ SbixImageSize sbix_image_size(const SbixGlyphData& g) {
 
     // Copy the trailing bytes — everything past the declared payload — into a
     // staging buffer so the header can be re-parsed without the payload.
+    if (size_t(declared) > g.data.size()) return size;
     size_t trailing = g.data.size() - size_t(declared);
     std::vector<uint8_t> stage(g.data.size());
     std::memcpy(stage.data(), p, trailing);
@@ -107,7 +108,7 @@ const char* sbix_graphic_type_name(const SbixGlyphData& g) {
     if (t == Tag::from_chars("dupe")) return "dupe";
 
     // Unrecognized type: spell the four tag bytes into a scratch label.
-    char label[5];
+    static thread_local char label[5];
     label[0] = char((t.value >> 24) & 0xFF);
     label[1] = char((t.value >> 16) & 0xFF);
     label[2] = char((t.value >> 8)  & 0xFF);

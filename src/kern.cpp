@@ -26,6 +26,7 @@ int16_t KernTable::lookup(uint16_t left, uint16_t right) const {
             int16_t row[64];
             int16_t* rp = row;
             uint16_t cols = sub.row_width ? sub.row_width : 1;
+            if (cols > 64) cols = 64;
             for (uint16_t c = 0; c < cols; ++c) {
                 size_t src = size_t(lv) / 2 + c;
                 rp[c] = (src < sub.array.size()) ? sub.array[src] : int16_t(0);
