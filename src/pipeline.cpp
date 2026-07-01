@@ -113,6 +113,35 @@ StringRenderResult render_string(const FontFace& font,
     return result;
 }
 
+namespace {
+
+// Scratch RGBA target that the layers of one color glyph are blended into.
+// The base address of the pixel buffer is kept alongside it so the inner
+// blend loop can address rows by pointer arithmetic instead of indexing the
+// vector on every pixel.
+struct LayerCanvas {
+    std::vector<uint8_t> rgba;
+    uint8_t*             base;
+    uint32_t             width;
+    uint32_t             height;
+
+    LayerCanvas(uint32_t w, uint32_t h)
+        : rgba(size_t(w) * h * 4, 0), base(rgba.data()), width(w), height(h) {}
+
+    // Make the strip wide enough to hold a layer that reaches `cols` columns.
+    void reserve_width(uint32_t cols) {
+        if (cols <= width) return;
+        width = cols;
+        rgba.resize(size_t(width) * height * 4, 0);
+    }
+
+    void blend(const RasterBuf& cov, uint32_t fg) {
+        composite_over(cov, fg, base, width, height, 0, 0);
+    }
+};
+
+} // namespace
+
 Result<std::vector<uint8_t>> render_color_glyph(const FontFace& font,
                                                   uint16_t glyph_id,
                                                   const PipelineConfig& cfg)
@@ -124,9 +153,7 @@ Result<std::vector<uint8_t>> render_color_glyph(const FontFace& font,
     if (!cg)
         return Result<std::vector<uint8_t>>::error(Status::GlyphNotFound);
 
-    uint32_t w = cfg.ppem;
-    uint32_t h = cfg.ppem;
-    std::vector<uint8_t> rgba(w * h * 4, 0);
+    LayerCanvas canvas(cfg.ppem, cfg.ppem);
 
     for (uint16_t li = 0; li < cg->num_layers; ++li) {
         uint16_t layer_idx = cg->first_layer_index + li;
@@ -148,10 +175,15 @@ Result<std::vector<uint8_t>> render_color_glyph(const FontFace& font,
                       (uint32_t(ce->green) <<  8) |
                        uint32_t(ce->blue);
 
-        composite_over(rr.value.coverage, fg, rgba.data(), w, h, 0, 0);
+        // A layer whose advance runs past the current strip widens it so the
+        // glyph is not clipped; later layers keep blending at the wider pitch.
+        if (rr.value.advance > 0)
+            canvas.reserve_width(uint32_t(rr.value.advance));
+
+        canvas.blend(rr.value.coverage, fg);
     }
 
-    return Result<std::vector<uint8_t>>::success(std::move(rgba));
+    return Result<std::vector<uint8_t>>::success(std::move(canvas.rgba));
 }
 
 } // namespace fontscope
