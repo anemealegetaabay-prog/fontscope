@@ -24,7 +24,7 @@ static std::vector<uint8_t> make_sfnt(uint16_t num_tables) {
     // Add two fake table records.
     for (uint16_t i = 0; i < num_tables; ++i) {
         uint32_t tag = (i == 0) ? 0x68656164u  // 'head'
-                                : 0x6D61787075; // 'maxp'
+                                : 0x6D617870u;  // 'maxp'
         pu32(uint32_t(tag));
         pu32(0xDEADBEEFu);  // fake checksum
         pu32(100u + i * 64u);
