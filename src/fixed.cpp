@@ -5,7 +5,9 @@ namespace fontscope {
 
 Fixed16 fixed_div(Fixed16 a, Fixed16 b) {
     if (b.raw == 0) return Fixed16::from_int(0);
-    return Fixed16::from_raw(int32_t((int64_t(a.raw) << 16) / b.raw));
+    // Scale by 2^16 via multiply (not a left shift) so a negative dividend
+    // does not invoke left-shift-of-negative UB.
+    return Fixed16::from_raw(int32_t((int64_t(a.raw) * 65536) / b.raw));
 }
 
 Fixed16 fixed_lerp(Fixed16 a, Fixed16 b, Fixed16 t) {

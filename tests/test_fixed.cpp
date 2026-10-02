@@ -39,6 +39,15 @@ static void test_fixed_div() {
     assert(std::fabs(r.to_f64() - 2.5) < 0.001);
 }
 
+static void test_fixed_div_negative() {
+    // Negative dividends are common (e.g. hinting IP); the scaling must not
+    // left-shift a negative value.
+    Fixed16 r = fixed_div(Fixed16::from_int(-3), Fixed16::from_int(2));
+    assert(r.raw == Fixed16::from_f64(-1.5).raw);
+    r = fixed_div(Fixed16::from_int(-3), Fixed16::from_int(-2));
+    assert(r.raw == Fixed16::from_f64(1.5).raw);
+}
+
 static void test_fixed_clamp() {
     Fixed16 lo = Fixed16::from_int(0);
     Fixed16 hi = Fixed16::from_int(10);
@@ -94,6 +103,7 @@ int main() {
     test_fixed16_fraction();
     test_fixed16_negative();
     test_fixed_div();
+    test_fixed_div_negative();
     test_fixed_clamp();
     test_fixed_abs();
     test_fixed_lerp();
