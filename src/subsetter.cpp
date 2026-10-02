@@ -417,7 +417,6 @@ SubsetResult subset_font_by_gids(
     emit_u16(sfnt, uint16_t(rs * 16));
 
     // Table directory (placeholder offsets).
-    size_t dir_offset = sfnt.size();
     uint32_t data_offset = uint32_t(12 + n * 16);
     // Align data area.
     while (data_offset % 4) ++data_offset;
