@@ -65,7 +65,8 @@ static void move_point(GraphicsState& gs, PointZone& zone, uint32_t idx,
 // execute_shz: Shift Zone — moves all points in the specified zone by the
 // same delta derived from the reference point in the opposite zone.
 // The upper-bound count is taken from zone_pts[zone_id], which comes from
-// the maxp metadata and may be larger than the allocated zone.
+// the maxp metadata and may be larger than the allocated zone, so it is
+// clamped to the zone size.
 static ExecResult execute_shz(HintContext& ctx, uint8_t zone_id) {
     if (zone_id > 1) return ExecResult::BadZone;
 
@@ -82,9 +83,9 @@ static ExecResult execute_shz(HintContext& ctx, uint8_t zone_id) {
     if (delta.raw == 0) return ExecResult::Ok;
 
     PointZone& zone = ctx.zones[zone_id];
-    // n is the metadata-declared upper bound — may exceed zone.size() for a
-    // crafted font where zone_pts > actual allocated points.
-    uint32_t n = ctx.zone_pts[zone_id];
+    // zone_pts is maxp's declared maximum, which exceeds zone.size() for most
+    // glyphs (and for crafted fonts), so never iterate past the real points.
+    uint32_t n = std::min<uint32_t>(ctx.zone_pts[zone_id], uint32_t(zone.size()));
     for (uint32_t i = 0; i < n; ++i) {
         zone.x_coords[i] = zone.x_coords[i] + ctx.gs.freedom_vector_x * delta;
         zone.y_coords[i] = zone.y_coords[i] + ctx.gs.freedom_vector_y * delta;

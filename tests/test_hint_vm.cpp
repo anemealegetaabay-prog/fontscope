@@ -126,6 +126,31 @@ static void test_shz_bounds() {
     assert(r == ExecResult::Ok);
 }
 
+// maxp.maxPoints (zone_pts) is usually larger than the current glyph's point
+// count. SHZ must shift only the points that exist, not write past the zone.
+static void test_shz_clamped_to_zone_size() {
+    HintContext ctx;
+    std::vector<Fixed16> cvt;
+    ctx.reset(0, 2, 4, cvt, 242, 2);  // as make_hint_context() does
+    ctx.zones[1].resize(15);          // as glyph loading does
+    // Move twilight point 0 by +1 in x so SHZ has a non-zero delta.
+    ctx.zones[0].x_coords[0] = Fixed16::from_int(1);
+
+    uint8_t code[] = {
+        0xB0, 0,   // push 0
+        0x12,      // SRP2 = 0
+        0xB0, 0,   // push 0
+        0x15,      // SZP2 = zone 0 (twilight)
+        0x36       // SHZ zone_id=1
+    };
+    FpgmTable fpgm;
+    auto r = execute_hint_program(ctx, code, sizeof(code), fpgm);
+    assert(r == ExecResult::Ok);
+    assert(ctx.zones[1].size() == 15);
+    for (size_t i = 0; i < ctx.zones[1].size(); ++i)
+        assert(ctx.zones[1].x_coords[i].raw == Fixed16::from_int(1).raw);
+}
+
 static void test_div_negative_dividend() {
     HintContext ctx;
     std::vector<Fixed16> cvt;
@@ -154,6 +179,7 @@ int main() {
     test_if_not_taken();
     test_max_iter_guard();
     test_shz_bounds();
+    test_shz_clamped_to_zone_size();
     test_div_negative_dividend();
     puts("test_hint_vm: all passed");
     return 0;
