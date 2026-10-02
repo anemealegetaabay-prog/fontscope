@@ -185,6 +185,9 @@ static void test_subset_font_builds_cmap() {
     CHECK(res.num_glyphs == 6);
 
     CmapIndex cmap = subset_cmap(res);
+    CHECK(cmap.subtables.size() == 1);
+    CHECK(!cmap.subtables.empty() && cmap.subtables[0].platform_id == 3 &&
+          cmap.subtables[0].encoding_id == 1 && cmap.subtables[0].format == 4);
     CHECK(cmap.lookup('A') == 1);
     CHECK(cmap.lookup('B') == 2);
     CHECK(cmap.lookup('C') == 3);

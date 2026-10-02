@@ -113,6 +113,9 @@ Result<CmapIndex> parse_cmap(ByteReader& r) {
         st.encoding_id = r.read_u16_be();
         st.offset      = r.read_u32_be();
         if (!r.ok()) break;
+        // Every subtable starts with its uint16 format; 0 if out of bounds.
+        ByteReader fr = r.sub_reader(table_start + st.offset, 2);
+        st.format = fr.read_u16_be();
         idx.subtables.push_back(st);
     }
 
