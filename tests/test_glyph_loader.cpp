@@ -30,7 +30,7 @@ static void test_make_hint_context_storage_cap() {
     font.raw_data.assign(16, 0);
     font.head.units_per_em = 1000;
     font.maxp.num_glyphs = 1;
-    font.maxp.max_storage = 0xFFFFFFFFu;
+    font.maxp.max_storage = 0xFFFF;
 
     HintContext ctx = make_hint_context(font, 0, 16);
     CHECK(ctx.storage.size() <= 4096);
