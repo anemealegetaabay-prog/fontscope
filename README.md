@@ -196,6 +196,10 @@ dictionary next to its binary.
 - `prep` is not executed and `cvar` is not applied.
 - Only TrueType (`glyf`) outlines are supported. CFF/CFF2 fonts are not.
 - Layout applies `kern` pairs only, with no `GSUB`/`GPOS` shaping.
+- **Subsetter:** `glyf`, `loca`, `hmtx` and `cmap` are rebuilt. The new
+  `cmap` is format 4, so codepoints above U+FFFF get no entry. `post` and
+  `kern` are copied unchanged, so glyph names and kerning pairs still use the
+  original glyph IDs, and `OS/2` is not carried over.
 
 ## Project layout
 
