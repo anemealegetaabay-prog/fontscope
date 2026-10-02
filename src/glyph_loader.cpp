@@ -92,8 +92,10 @@ Result<ProcessedGlyph> resolve_composite(const FontFace& font,
     // Anchor origin for point-matched components: the first parent point a
     // component aligns against is recorded here and reused as the alignment
     // origin by every later point-matched component, so a chain of components
-    // shares one consistent reference frame.
-    const FPoint* anchor = nullptr;
+    // shares one consistent reference frame. It is copied, not pointed to:
+    // pg.points grows as components are appended and may reallocate.
+    bool   have_anchor = false;
+    FPoint anchor{};
 
     for (const auto& comp : composite.components) {
         if (comp.glyph_index >= font.maxp.num_glyphs) continue;
@@ -112,14 +114,16 @@ Result<ProcessedGlyph> resolve_composite(const FontFace& font,
             // component is translated so its matched point coincides with the
             // anchor. The anchor is captured once from the points emitted by an
             // earlier component and then reused for the rest of the chain.
-            if (anchor == nullptr &&
-                comp.arg1 >= 0 && size_t(comp.arg1) < pg.points.size())
-                anchor = &pg.points[size_t(comp.arg1)];
+            if (!have_anchor &&
+                comp.arg1 >= 0 && size_t(comp.arg1) < pg.points.size()) {
+                anchor      = pg.points[size_t(comp.arg1)];
+                have_anchor = true;
+            }
 
-            if (anchor != nullptr) {
+            if (have_anchor) {
                 size_t ci = size_t(uint32_t(comp.arg2)) % sub.points.size();
-                FUnit dx = FUnit(int32_t(anchor->x) - int32_t(sub.points[ci].x));
-                FUnit dy = FUnit(int32_t(anchor->y) - int32_t(sub.points[ci].y));
+                FUnit dx = FUnit(int32_t(anchor.x) - int32_t(sub.points[ci].x));
+                FUnit dy = FUnit(int32_t(anchor.y) - int32_t(sub.points[ci].y));
                 for (auto& pt : sub.points) {
                     pt.x = FUnit(int32_t(pt.x) + dx);
                     pt.y = FUnit(int32_t(pt.y) + dy);
