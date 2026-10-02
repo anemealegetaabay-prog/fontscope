@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cmath>
+#include <vector>
 
 using namespace fontscope;
 
@@ -103,6 +104,41 @@ static void test_apply_deltas_fewer() {
     assert(pts[1].x == 3);
 }
 
+// A delta set can reference more points than the glyph has: more deltas than
+// points, or explicit point numbers past the end. Those deltas used to be
+// written past the end of the output (heap-buffer-overflow under ASan); they
+// are now ignored, and in-range deltas still apply.
+static void test_compute_deltas_ignores_out_of_range_points() {
+    std::vector<VariationRegion> regions(1);  // no axes: scalar 1.0
+    std::vector<F2Dot14> coords;
+
+    // 8 x-deltas and 8 y-deltas for a 4-point glyph.
+    GlyphVariationData all_points;
+    DeltaSet ds;
+    ds.region_index = 0;
+    for (int16_t i = 0; i < 8; ++i) ds.deltas.push_back(int16_t(i + 1));       // dx
+    for (int16_t i = 0; i < 8; ++i) ds.deltas.push_back(int16_t(10 * (i + 1)));  // dy
+    all_points.delta_sets.push_back(ds);
+    auto out = compute_point_deltas(regions, all_points, coords, 4);
+    assert(out.size() == 4);
+    for (int i = 0; i < 4; ++i) {
+        assert(out[i].dx == i + 1);
+        assert(out[i].dy == 10 * (i + 1));
+    }
+
+    // Explicit point numbers, one of them past the end.
+    GlyphVariationData numbered;
+    DeltaSet nds;
+    nds.region_index = 0;
+    nds.deltas = {5, 7, 50, 70};  // dx for points 1 and 9, then dy
+    numbered.delta_sets.push_back(nds);
+    numbered.point_numbers = {1, 9};
+    out = compute_point_deltas(regions, numbered, coords, 4);
+    assert(out.size() == 4);
+    assert(out[1].dx == 5 && out[1].dy == 50);
+    assert(out[0].dx == 0 && out[2].dx == 0 && out[3].dx == 0);
+}
+
 int main() {
     test_normalize_axis();
     test_normalize_axis_clamped();
@@ -112,6 +148,7 @@ int main() {
     test_compute_deltas_zero_scalar();
     test_apply_deltas_basic();
     test_apply_deltas_fewer();
+    test_compute_deltas_ignores_out_of_range_points();
     puts("test_variation: all passed");
     return 0;
 }

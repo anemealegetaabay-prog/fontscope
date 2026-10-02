@@ -37,9 +37,11 @@ std::vector<PointDelta> compute_point_deltas(
             size_t target = gvd.point_numbers.empty()
                           ? size_t(i)
                           : size_t(gvd.point_numbers[i % gvd.point_numbers.size()]);
-            PointDelta* acc = out.data();
-            acc[target].dx += sdx;
-            acc[target].dy += sdy;
+            // Both the delta count and the point numbers come from the font
+            // and can reference points the glyph doesn't have.
+            if (target >= out.size()) continue;
+            out[target].dx += sdx;
+            out[target].dy += sdy;
         }
     }
 
