@@ -1,4 +1,6 @@
 #include "fontscope/subsetter.h"
+#include "fontscope/sfnt.h"
+#include "fontscope/cmap.h"
 #include <cstdio>
 #include <cassert>
 #include <cstring>
@@ -142,6 +144,64 @@ static void test_pad_to_4_already_aligned() {
     for (auto b : v) CHECK(b == 0xFF);
 }
 
+//
+
+// Parse the cmap table back out of a subset's SFNT bytes.
+static CmapIndex subset_cmap(const SubsetResult& res) {
+    ByteReader r(res.sfnt_data.data(), res.sfnt_data.size());
+    auto hdr = parse_sfnt_header(r);
+    CHECK(hdr.ok());
+    const TableRecord* rec = hdr.ok() ? find_table(hdr.value, tags::CMAP()) : nullptr;
+    CHECK(rec != nullptr);
+    if (!rec) return {};
+
+    // The format-4 length field (after the 12-byte cmap header and encoding
+    // record) must cover the whole subtable.
+    ByteReader len_r = r.sub_reader(rec->offset + 14, 2);
+    CHECK(len_r.read_u16_be() == rec->length - 12);
+
+    ByteReader cr = r.sub_reader(rec->offset, rec->length);
+    auto cmap = parse_cmap(cr);
+    CHECK(cmap.ok());
+    return cmap.value;
+}
+
+// A FontFace with only a cmap: with no glyf/loca, the requested glyphs are
+// kept as-is and the subset contains just the rebuilt cmap.
+static FontFace make_cmap_only_font() {
+    FontFace f{};
+    f.cmap.unicode_to_glyph = {
+        {'A', 36}, {'B', 37}, {'C', 38}, {0x20AC, 120}, {0x1F600, 200},
+    };
+    return f;
+}
+
+static void test_subset_font_builds_cmap() {
+    FontFace f = make_cmap_only_font();
+    // 'B' twice, 'Z' unmapped, U+1F600 outside the BMP.
+    auto res = subset_font(f, {'A', 'B', 'B', 'C', 'Z', 0x20AC, 0x1F600});
+    CHECK(res.ok);
+    // notdef + old GIDs 36, 37, 38, 120, 200 → new GIDs 0..5 in old-GID order.
+    CHECK(res.num_glyphs == 6);
+
+    CmapIndex cmap = subset_cmap(res);
+    CHECK(cmap.lookup('A') == 1);
+    CHECK(cmap.lookup('B') == 2);
+    CHECK(cmap.lookup('C') == 3);
+    CHECK(cmap.lookup(0x20AC) == 4);
+    CHECK(cmap.lookup('Z') == 0);
+    CHECK(cmap.lookup(0x1F600) == 0);  // not representable in format 4
+    CHECK(cmap.unicode_to_glyph.size() == 4);
+}
+
+static void test_subset_font_by_gids_empty_cmap() {
+    FontFace f = make_cmap_only_font();
+    auto res = subset_font_by_gids(f, {36, 37});
+    CHECK(res.ok);
+    CmapIndex cmap = subset_cmap(res);
+    CHECK(cmap.unicode_to_glyph.empty());
+}
+
 int main() {
     test_emit_u16();
     test_emit_u32();
@@ -157,6 +217,8 @@ int main() {
     test_emit_sequence();
     test_sfnt_checksum_words();
     test_pad_to_4_already_aligned();
+    test_subset_font_builds_cmap();
+    test_subset_font_by_gids_empty_cmap();
 
     if (failures) {
         fprintf(stderr, "test_subsetter: %d failure(s)\n", failures);

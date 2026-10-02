@@ -28,13 +28,16 @@ struct SubsetResult {
 };
 
 // Subset a font to only the glyphs needed to render the given Unicode codepoints.
-// Composite glyphs pull in their component glyphs transitively.
+// Composite glyphs pull in their component glyphs transitively. The output has
+// a format-4 cmap mapping the BMP codepoints to the new glyph IDs; codepoints
+// above U+FFFF keep their glyphs but get no cmap entry.
 SubsetResult subset_font(
     const FontFace&                       font,
     const std::vector<uint32_t>&          codepoints,
     const SubsetOptions&                  opts = {});
 
 // Subset by explicit glyph IDs (already resolved; components fetched transitively).
+// No codepoints are known here, so the output cmap contains no mappings.
 SubsetResult subset_font_by_gids(
     const FontFace&                       font,
     const std::unordered_set<uint16_t>&   glyph_ids,

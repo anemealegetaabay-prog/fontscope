@@ -94,50 +94,31 @@ static std::vector<uint8_t> build_cmap4(
     emit_u16(out, 1);
     emit_u32(out, 12);  // offset to subtable
 
-    // Collect BMP codepoint→new-GID pairs.
+    // Collect BMP codepoint→new-GID pairs. U+FFFF is reserved for the
+    // terminator segment, and unmapped codepoints (old GID 0) are left out.
     std::vector<std::pair<uint16_t,uint16_t>> pairs;
     for (uint32_t cp : codepoints) {
-        if (cp > 0xFFFF) continue;
+        if (cp >= 0xFFFF) continue;
         uint16_t old_gid = font.cmap.lookup(cp);
+        if (old_gid == 0) continue;
         auto it = gid_map.find(old_gid);
         if (it == gid_map.end()) continue;
         pairs.emplace_back(uint16_t(cp), it->second);
     }
     std::sort(pairs.begin(), pairs.end());
-
-    if (pairs.empty()) {
-        // Emit empty format-4 subtable.
-        emit_u16(out, 4);   // format
-        emit_u16(out, 32);  // length (minimum)
-        emit_u16(out, 0);   // language
-        emit_u16(out, 0);   // segCountX2
-        emit_u16(out, 0); emit_u16(out, 0); emit_u16(out, 0);
-        // terminator segment
-        emit_u16(out, 0xFFFF); // endCode
-        emit_u16(out, 0);      // reservedPad
-        emit_u16(out, 0xFFFF); // startCode
-        emit_u16(out, 1);      // idDelta
-        emit_u16(out, 0);      // idRangeOffset
-        return out;
-    }
+    // Duplicate codepoints would produce overlapping segments.
+    pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
 
     // Build simple contiguous segments.
     struct Seg { uint16_t start, end, delta; };
     std::vector<Seg> segs;
-    Seg cur{pairs[0].first, pairs[0].first,
-            uint16_t(int(pairs[0].second) - int(pairs[0].first))};
-    for (size_t i = 1; i < pairs.size(); ++i) {
-        uint16_t cp  = pairs[i].first;
-        uint16_t gid = pairs[i].second;
-        uint16_t exp_delta = uint16_t(int(gid) - int(cp));
-        if (cp == cur.end + 1 && exp_delta == cur.delta) {
-            cur.end = cp;
-        } else {
-            segs.push_back(cur);
-            cur = {cp, cp, exp_delta};
-        }
+    for (const auto& [cp, gid] : pairs) {
+        uint16_t delta = uint16_t(int(gid) - int(cp));
+        if (!segs.empty() && cp == segs.back().end + 1 && delta == segs.back().delta)
+            segs.back().end = cp;
+        else
+            segs.push_back({cp, cp, delta});
     }
-    segs.push_back(cur);
     // Terminator.
     segs.push_back({0xFFFF, 0xFFFF, 1});
 
@@ -147,8 +128,9 @@ static std::vector<uint8_t> build_cmap4(
     while (search_range * 2 <= seg_count) { search_range *= 2; ++entry_selector; }
     uint16_t range_shift  = uint16_t(seg_count - search_range);
 
-    // Format-4 subtable (no glyphIdArray, all delta-based).
-    uint16_t subtable_len = uint16_t(14 + seg_count * 8);
+    // Format-4 subtable (no glyphIdArray, all delta-based): 14-byte header,
+    // 2-byte reservedPad, and four uint16 arrays of seg_count entries.
+    uint16_t subtable_len = uint16_t(16 + seg_count * 8);
     emit_u16(out, 4);
     emit_u16(out, subtable_len);
     emit_u16(out, 0);  // language
@@ -267,9 +249,12 @@ static void build_glyf_loca(
     }
 }
 
-SubsetResult subset_font_by_gids(
+// Shared implementation. `codepoints` drives the rebuilt cmap; it is empty
+// when subsetting by glyph ID, which yields a cmap with no mappings.
+static SubsetResult subset_impl(
     const FontFace&                       font,
     const std::unordered_set<uint16_t>&   glyph_ids,
+    const std::vector<uint32_t>&          codepoints,
     const SubsetOptions&                  opts)
 {
     SubsetResult res{};
@@ -368,29 +353,8 @@ SubsetResult subset_font_by_gids(
         if (!d.empty()) tables.push_back({tags::MAXP().value, std::move(d)});
     }
 
-    // cmap: build minimal format-4 (requires codepoints, omit here — use empty).
-    {
-        std::vector<uint8_t> cmap_data;
-        emit_u16(cmap_data, 0);  // version
-        emit_u16(cmap_data, 1);  // numTables
-        emit_u16(cmap_data, 3);  // platformId
-        emit_u16(cmap_data, 1);  // encodingId
-        emit_u32(cmap_data, 12); // offset
-        // Format-4, empty (just terminator segment).
-        emit_u16(cmap_data, 4);   // format
-        emit_u16(cmap_data, 32);  // length
-        emit_u16(cmap_data, 0);   // language
-        emit_u16(cmap_data, 2);   // segCountX2
-        emit_u16(cmap_data, 2);   // searchRange
-        emit_u16(cmap_data, 0);   // entrySelector
-        emit_u16(cmap_data, 0);   // rangeShift
-        emit_u16(cmap_data, 0xFFFF); // endCode[0]
-        emit_u16(cmap_data, 0);      // reservedPad
-        emit_u16(cmap_data, 0xFFFF); // startCode[0]
-        emit_u16(cmap_data, 1);      // idDelta[0]
-        emit_u16(cmap_data, 0);      // idRangeOffset[0]
-        tables.push_back({tags::CMAP().value, std::move(cmap_data)});
-    }
+    // cmap: format 4 mapping the requested BMP codepoints to their new GIDs.
+    tables.push_back({tags::CMAP().value, build_cmap4(font, gid_map, codepoints)});
 
     if (!new_loca.empty()) tables.push_back({tags::LOCA().value, std::move(new_loca)});
     if (!new_glyf.empty()) tables.push_back({tags::GLYF().value, std::move(new_glyf)});
@@ -460,6 +424,14 @@ SubsetResult subset_font_by_gids(
     return res;
 }
 
+SubsetResult subset_font_by_gids(
+    const FontFace&                       font,
+    const std::unordered_set<uint16_t>&   glyph_ids,
+    const SubsetOptions&                  opts)
+{
+    return subset_impl(font, glyph_ids, {}, opts);
+}
+
 SubsetResult subset_font(
     const FontFace&              font,
     const std::vector<uint32_t>& codepoints,
@@ -470,7 +442,7 @@ SubsetResult subset_font(
         uint16_t gid = font.cmap.lookup(cp);
         if (gid != 0) gids.insert(gid);
     }
-    return subset_font_by_gids(font, gids, opts);
+    return subset_impl(font, gids, codepoints, opts);
 }
 
 } // namespace fontscope
