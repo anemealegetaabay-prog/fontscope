@@ -40,7 +40,7 @@ static Fixed16 do_round(const GraphicsState& gs, Fixed16 v) {
     switch (gs.round_state) {
     case 0: return v;
     case 1: return fixed_round_to_grid(v);
-    case 2: return Fixed16::from_raw((v.raw + 0x8000) & ~0xFFFF | 0x8000);
+    case 2: return Fixed16::from_raw(((v.raw + 0x8000) & ~0xFFFF) | 0x8000);
     case 3: return Fixed16::from_raw((v.raw + 0x4000) & ~0x7FFF);
     default: return fixed_round_to_grid(v);
     }
@@ -95,7 +95,8 @@ static ExecResult execute_shz(HintContext& ctx, uint8_t zone_id) {
 }
 
 ExecResult execute_hint_program(HintContext& ctx, const uint8_t* code,
-                                size_t code_len, const FpgmTable& fpgm,
+                                size_t code_len,
+                                [[maybe_unused]] const FpgmTable& fpgm,
                                 uint32_t max_stack, uint32_t max_iters)
 {
     size_t ip = 0;
@@ -105,7 +106,7 @@ ExecResult execute_hint_program(HintContext& ctx, const uint8_t* code,
         if (++iters > max_iters) return ExecResult::Abort;
 
         uint8_t op = code[ip++];
-        int32_t a = 0, b = 0, c = 0;
+        int32_t a = 0, b = 0;
 
         switch (op) {
         // SVTCA[a] — Set Vector To Coordinate Axis
