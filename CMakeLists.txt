@@ -89,6 +89,7 @@ if(BUILD_TESTS)
     add_fs_test(test_subsetter)
     add_fs_test(test_raster)
     add_fs_test(test_glyph_loader)
+    add_fs_test(test_color_render)
 endif()
 
 if(BUILD_FUZZERS)

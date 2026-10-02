@@ -51,7 +51,8 @@ StringRenderResult render_string(const FontFace& font,
                                   const PipelineConfig& cfg);
 
 // Render a single glyph through the color layer pipeline (COLR/CPAL).
-// Each layer is composited onto a shared RGBA buffer.
+// Each layer is composited onto a shared ppem x ppem RGBA buffer (row pitch
+// ppem * 4 bytes); parts of a layer outside it are clipped.
 Result<std::vector<uint8_t>> render_color_glyph(const FontFace& font,
                                                   uint16_t glyph_id,
                                                   const PipelineConfig& cfg);

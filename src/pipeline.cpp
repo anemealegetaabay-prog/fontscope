@@ -116,27 +116,21 @@ StringRenderResult render_string(const FontFace& font,
 namespace {
 
 // Scratch RGBA target that the layers of one color glyph are blended into.
-// The base address of the pixel buffer is kept alongside it so the inner
-// blend loop can address rows by pointer arithmetic instead of indexing the
-// vector on every pixel.
+// It stays ppem x ppem, the size callers of render_color_glyph() assume since
+// only the pixel bytes are returned; composite_over() clips layers that reach
+// past it.
 struct LayerCanvas {
     std::vector<uint8_t> rgba;
-    uint8_t*             base;
     uint32_t             width;
     uint32_t             height;
 
     LayerCanvas(uint32_t w, uint32_t h)
-        : rgba(size_t(w) * h * 4, 0), base(rgba.data()), width(w), height(h) {}
-
-    // Make the strip wide enough to hold a layer that reaches `cols` columns.
-    void reserve_width(uint32_t cols) {
-        if (cols <= width) return;
-        width = cols;
-        rgba.resize(size_t(width) * height * 4, 0);
-    }
+        : rgba(size_t(w) * h * 4, 0), width(w), height(h) {}
 
     void blend(const RasterBuf& cov, uint32_t fg) {
-        composite_over(cov, fg, base, width, height, 0, 0);
+        // Take the buffer address here instead of caching it, so it can
+        // never refer to storage the vector has since released.
+        composite_over(cov, fg, rgba.data(), width, height, 0, 0);
     }
 };
 
@@ -175,11 +169,7 @@ Result<std::vector<uint8_t>> render_color_glyph(const FontFace& font,
                       (uint32_t(ce->green) <<  8) |
                        uint32_t(ce->blue);
 
-        // A layer whose advance runs past the current strip widens it so the
-        // glyph is not clipped; later layers keep blending at the wider pitch.
-        if (rr.value.advance > 0)
-            canvas.reserve_width(uint32_t(rr.value.advance));
-
+        // Layers wider than the ppem x ppem canvas are clipped to it.
         canvas.blend(rr.value.coverage, fg);
     }
 
