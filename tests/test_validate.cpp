@@ -6,12 +6,8 @@
 
 using namespace fontscope;
 
-// Build a minimal valid font in memory for validation tests.
-static std::vector<uint8_t> make_minimal_font() {
-    // We can't easily build a fully correct TTF here, so we test validation
-    // logic on a FontFace that we construct directly.
-    return {};
-}
+// Building a fully correct TTF in memory is impractical here, so these tests
+// exercise the validation logic on FontFace values constructed directly.
 
 static void test_head_magic_check() {
     FontFace f{};
