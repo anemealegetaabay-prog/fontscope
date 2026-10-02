@@ -293,7 +293,8 @@ static SubsetResult subset_impl(
     // head: patch indexToLocFormat.
     {
         auto d = extract_table(font, tags::HEAD());
-        if (d.size() >= 50) {
+        // indexToLocFormat is the int16 at offset 50, so bytes 50-51 must exist.
+        if (d.size() >= 52) {
             d[50] = 0;
             d[51] = long_loca ? 1 : 0;
             // Zero checksumAdjustment for now (will patch after full assembly).

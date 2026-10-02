@@ -194,6 +194,27 @@ static void test_subset_font_builds_cmap() {
     CHECK(cmap.unicode_to_glyph.size() == 4);
 }
 
+// A head table that ends inside indexToLocFormat (offset 50) must be copied
+// unpatched instead of being written past its end.
+static void test_subset_short_head_table() {
+    FontFace f = make_cmap_only_font();
+    f.raw_data.assign(64, 0xAB);
+    TableRecord head{};
+    head.tag    = tags::HEAD();
+    head.offset = 0;
+    head.length = 51;
+    f.sfnt.tables.push_back(head);
+
+    auto res = subset_font(f, {'A'});
+    CHECK(res.ok);
+    ByteReader r(res.sfnt_data.data(), res.sfnt_data.size());
+    auto hdr = parse_sfnt_header(r);
+    CHECK(hdr.ok());
+    const TableRecord* rec = hdr.ok() ? find_table(hdr.value, tags::HEAD()) : nullptr;
+    CHECK(rec != nullptr && rec->length == 51);
+    if (rec) CHECK(res.sfnt_data[rec->offset + 50] == 0xAB);  // not patched
+}
+
 static void test_subset_font_by_gids_empty_cmap() {
     FontFace f = make_cmap_only_font();
     auto res = subset_font_by_gids(f, {36, 37});
@@ -219,6 +240,7 @@ int main() {
     test_pad_to_4_already_aligned();
     test_subset_font_builds_cmap();
     test_subset_font_by_gids_empty_cmap();
+    test_subset_short_head_table();
 
     if (failures) {
         fprintf(stderr, "test_subsetter: %d failure(s)\n", failures);
