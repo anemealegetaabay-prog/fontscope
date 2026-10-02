@@ -229,48 +229,65 @@ ExecResult execute_hint_program(HintContext& ctx, const uint8_t* code,
 
         // ADD, SUB, MUL, DIV, ABS, NEG, MAX, MIN
         case 0x60: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a+b, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a+b, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x61: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a-b, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a-b, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x63: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
                    if (!stack_push(ctx, int32_t((int64_t(a)*b+32)>>6), max_stack))
-                       return ExecResult::StackOverflow; break;
+                       return ExecResult::StackOverflow;
+                   break;
         case 0x62: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
                    if (b==0) b=1;
                    // Scale by 64 via multiply (not a left shift) so a negative
                    // dividend does not invoke left-shift-of-negative UB.
                    if (!stack_push(ctx, int32_t((int64_t(a)*64)/b), max_stack))
-                       return ExecResult::StackOverflow; break;
+                       return ExecResult::StackOverflow;
+                   break;
         case 0x64: if (!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a<0?-a:a, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a<0?-a:a, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x65: if (!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, -a, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, -a, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x68: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a>b?a:b, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a>b?a:b, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x69: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a<b?a:b, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a<b?a:b, max_stack)) return ExecResult::StackOverflow;
+                   break;
 
         // AND, OR, NOT
         case 0x5A: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, (a&&b)?1:0, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, (a&&b)?1:0, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x5B: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, (a||b)?1:0, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, (a||b)?1:0, max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x5C: if (!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx, a?0:1, max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx, a?0:1, max_stack)) return ExecResult::StackOverflow;
+                   break;
 
         // EQ, NEQ, LT, LTEQ, GT, GTEQ
         case 0x54: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a==b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a==b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x55: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a!=b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a!=b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x50: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a<b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a<b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x51: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a<=b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a<=b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x52: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a>b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a>b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
         case 0x53: if (!stack_pop(ctx,b)||!stack_pop(ctx,a)) return ExecResult::StackUnderflow;
-                   if (!stack_push(ctx,a>=b?1:0,max_stack)) return ExecResult::StackOverflow; break;
+                   if (!stack_push(ctx,a>=b?1:0,max_stack)) return ExecResult::StackOverflow;
+                   break;
 
         // IF / ELSE / EIF
         case 0x58: {
