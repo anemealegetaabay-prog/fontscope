@@ -3,7 +3,7 @@
 namespace fontscope {
 
 GlyfRange LocaTable::glyph_range(uint16_t glyph_id) const {
-    if (glyph_id + 1 >= offsets.size())
+    if (size_t(glyph_id) + 1 >= offsets.size())
         return {0, 0};
     return {offsets[glyph_id], offsets[glyph_id + 1]};
 }
